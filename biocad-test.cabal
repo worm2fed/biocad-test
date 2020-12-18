@@ -1,0 +1,87 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 9395716d1063b492794fbfc7ab42fe7dbfc4ff95a171bd06521af9bc3ea71c67
+
+name:           biocad-test
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/worm2fed/biocad-test#readme>
+homepage:       https://github.com/worm2fed/biocad-test#readme
+bug-reports:    https://github.com/worm2fed/biocad-test/issues
+author:         Andrey Demidenko
+maintainer:     worm2fed@gmail.com
+license:        BSD3
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/worm2fed/biocad-test
+
+library
+  exposed-modules:
+      API
+      Type.Instances
+      Type.Node.Catalyst
+      Type.Node.Molecule
+      Type.Node.Reaction
+      Type.Relation.ACCELERATE
+      Type.Relation.PRODUCT_FROM
+      Type.Relation.REAGENT_IN
+  other-modules:
+      Paths_biocad_test
+  hs-source-dirs:
+      src
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , data-default
+    , hasbolt
+    , hasbolt-extras
+    , mtl
+    , text
+  default-language: Haskell2010
+
+executable biocad-test-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_biocad_test
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , biocad-test
+    , bytestring
+    , data-default
+    , hasbolt
+    , hasbolt-extras
+    , mtl
+    , text
+  default-language: Haskell2010
+
+test-suite biocad-test-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_biocad_test
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , biocad-test
+    , bytestring
+    , data-default
+    , hasbolt
+    , hasbolt-extras
+    , mtl
+    , text
+  default-language: Haskell2010

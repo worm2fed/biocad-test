@@ -1,0 +1,10 @@
+cradle:
+  stack:
+    - path: "./app/Main.hs"
+      component: "biocad-test:exe:biocad-test-exe"
+
+    - path: "./src"
+      component: "biocad-test:lib"
+
+    - path: "./test"
+      component: "biocad-test:test:biocad-test-test"
