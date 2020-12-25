@@ -17,7 +17,8 @@ data CatalystType = Heterogeneous | Homogeneous | Bio
   deriving (Show, Generic)
 
 data Catalyst = Catalyst
-    { smiles         :: String
+    { id             :: Int
+    , smiles         :: String
     , name           :: Maybe String
     , classification :: String
     } deriving (Show, Generic)
@@ -25,84 +26,104 @@ makeNodeLike ''Catalyst
 
 
 catalysts :: [Catalyst]
-catalysts =  map (\(a, b, c) -> Catalyst a b c)
-    [ ( "[O-][Mn](=O)(=O)=O.[K+]"
+catalysts =  map (\(i, s, n, c) -> Catalyst i s n c)
+    [ ( 1
+      , "[O-][Mn](=O)(=O)=O.[K+]"
       , Just "Potassium permanganate"
       , "Heterogeneous"
       )
-    , ( "[Pt]"
+    , ( 2
+      , "[Pt]"
       , Just "Platinum"
       , "Homogeneous"
       )
-    , ( "[Pd]"
+    , ( 3
+      , "[Pd]"
       , Just "Palladium"
       , "Homogeneous"
       )
-    , ( "[Fe]"
+    , ( 4
+      ,"[Fe]"
       , Just "Iron"
       , "Homogeneous"
       )
-    , ( "O=[V]=O"
+    , ( 5
+      ,"O=[V]=O"
       , Just "Vanadium dioxide"
       , "Heterogeneous"
       )
-    , ( "C1CC(NC1)C(=O)O"
+    , ( 6
+      ,"C1CC(NC1)C(=O)O"
       , Just "Proline"
       , "Bio"
       )
-    , ( "diastase"
+    , ( 7
+      ,"diastase"
       , Just "Diastase"
       , "Bio"
       )
-    , ( "lactase"
+    , ( 8
+      ,"lactase"
       , Just "Lactase"
       , "Bio"
       )
-    , ( "CC1=CC=C(C=C1)SC2=C(C=C(C=C2)C=C3C(=O)NC(=S)S3)C(F)(F)F"
+    , ( 9
+      ,"CC1=CC=C(C=C1)SC2=C(C=C(C=C2)C=C3C(=O)NC(=S)S3)C(F)(F)F"
       , Just "DNA polymerase"
       , "Bio"
       )
-    , ( "alp"
+    , ( 10
+      ,"alp"
       , Just "alkaline phosphatase (ALP)"
       , "Bio"
       )
-    , ( "]+K[.O=)O=()O=(]nM[]-O["
+    , ( 11
+      ,"]+K[.O=)O=()O=(]nM[]-O["
       , Nothing
       , "Heterogeneous"
       )
-    , ( "O)O=(C)1CN(CC1C"
+    , ( 12
+      ,"O)O=(C)1CN(CC1C"
       , Nothing
       , "Homogeneous"
       )
-    , ( "C1CC"
+    , ( 13
+      ,"C1CC"
       , Nothing
       , "Bio"
       )
-    , ( "NC(=S)S3)C(F)(F)"
+    , ( 14
+      ,"NC(=S)S3)C(F)(F)"
       , Nothing
       , "Bio"
       )
-    , ( "C(C=C1)SC2=C"
+    , ( 15
+      ,"C(C=C1)SC2=C"
       , Nothing
       , "Heterogeneous"
       )
-    , ( "1CN"
+    , ( 16
+      ,"1CN"
       , Nothing
       , "Heterogeneous"
       )
-    , ( "O=()O"
+    , ( 17
+      ,"O=()O"
       , Nothing
       , "Homogeneous"
       )
-    , ( "SC2=C(C=C(C=C2)C=C3C"
+    , ( 18
+      ,"SC2=C(C=C(C=C2)C=C3C"
       , Nothing
       , "Bio"
       )
-    , ( "(C3C=C)2C=C(C=C(C=2CS)"
+    , ( 19
+      ,"(C3C=C)2C=C(C=C(C=2CS)"
       , Nothing
       , "Bio"
       )
-    , ( "F)F()F(C)3S)S=(CN)O=(C3C=C)2C=C(C=C(C=2CS)1C=C(C=CC=1CC"
+    , ( 20
+      ,"F)F()F(C)3S)S=(CN)O=(C3C=C)2C=C(C=C(C=2CS)1C=C(C=CC=1CC"
       , Nothing
       , "Heterogeneous"
       )

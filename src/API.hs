@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -8,9 +9,12 @@
 module API (runQueryDB, putCatalyst, putMolecule, putReaction, putReactionWithRelations, findReaction, findPath) where
 
 import           Control.Exception          (bracket)
+import           Control.Monad              (forM)
 import           Control.Monad.State        (execState, modify)
 import           Data.Default               (Default (def))
+import           Data.Foldable              (traverse_)
 import           Data.Function              ((&))
+import           Data.Text                  (Text, pack)
 
 import           Database.Bolt              (BoltActionT, BoltCfg, Path, Pipe,
                                              at, close, connect, password,
@@ -26,15 +30,12 @@ import           Database.Bolt.Extras.Graph (GetRequest, GraphGetRequest,
                                              emptyGraph, extractNode,
                                              withBoltId, withLabelQ, withReturn)
 
-import           Control.Monad              (forM)
-import           Data.Text                  (Text, pack)
-import           Type.Node.Catalyst         (Catalyst)
-import           Type.Node.Molecule         (Molecule, iupacName)
-import           Type.Node.Reaction         (Reaction)
+import qualified Type.Node.Catalyst         as C
+import qualified Type.Node.Molecule         as M
+import qualified Type.Node.Reaction         as R
 import           Type.Relation.ACCELERATE   (ACCELERATE (..))
 import           Type.Relation.PRODUCT_FROM (PRODUCT_FROM (..))
 import           Type.Relation.REAGENT_IN   (REAGENT_IN (..))
-
 
 
 -- | Configuration for connection to local database
@@ -53,14 +54,13 @@ runQueryDB :: BoltActionT IO a -> IO a
 runQueryDB act = bracket connection close (`run` act)
 
 
-
 -- | Builds query to create Catalyst
-prepareCatalyst :: Catalyst -> GraphPutRequest
+prepareCatalyst :: C.Catalyst -> GraphPutRequest
 prepareCatalyst catalyst = flip execState emptyGraph $ do
         modify $ addNode "c" (CreateN . toNode $ catalyst)
 
 -- | Put Catalyst to the database
-putCatalyst :: Catalyst -> IO ()
+putCatalyst :: C.Catalyst -> IO ()
 putCatalyst catalyst = do
     request <- runQueryDB $ makeRequest @PutRequest []
                           $ prepareCatalyst catalyst
@@ -68,12 +68,12 @@ putCatalyst catalyst = do
 
 
 -- | Builds query to create Molecule
-prepareMolecule :: Molecule -> GraphPutRequest
+prepareMolecule :: M.Molecule -> GraphPutRequest
 prepareMolecule molecule = flip execState emptyGraph $ do
         modify $ addNode "m" (CreateN . toNode $ molecule)
 
 -- | Put Molecule to the database
-putMolecule :: Molecule -> IO ()
+putMolecule :: M.Molecule -> IO ()
 putMolecule molecule = do
     request <- runQueryDB $ makeRequest @PutRequest []
                           $ prepareMolecule molecule
@@ -81,12 +81,12 @@ putMolecule molecule = do
 
 
 -- | Builds query to create Reaction
-prepareReaction :: Reaction -> GraphPutRequest
+prepareReaction :: R.Reaction -> GraphPutRequest
 prepareReaction reaction = flip execState emptyGraph $ do
         modify $ addNode "r" (CreateN . toNode $ reaction)
 
 -- | Put Reaction to the database
-putReaction :: Reaction -> IO ()
+putReaction :: R.Reaction -> IO ()
 putReaction reaction = do
     request <- runQueryDB $ makeRequest @PutRequest []
                           $ prepareReaction reaction
@@ -94,37 +94,48 @@ putReaction reaction = do
 
 
 -- | Builds query to create Reaction with relations
-prepareReactionWithRelations :: (Molecule, Molecule)
-                             -> (Catalyst, Float, Float)
-                             -> (Reaction, Float)
-                             -> Molecule
+prepareReactionWithRelations :: [M.Molecule]
+                             -> [(C.Catalyst, Float, Float)]
+                             -> R.Reaction
+                             -> [(M.Molecule, Float)]
                              -> GraphPutRequest
-prepareReactionWithRelations (m1, m2) (catalyst, temp, pressure) (reaction, amount) out =
+prepareReactionWithRelations inM c reaction outM =
     flip execState emptyGraph $ do
+        -- add reaction
         modify $ addNode "r" (CreateN . toNode $ reaction)
+        -- add all input molecules
+        traverse_ attachInMolecule inM
+        -- add all input catalysts
+        traverse_ attachCatalyst c
+        -- add all output molecules
+        traverse_ attachOutMolecule outM
+    where
+        attachInMolecule molecule =
+            let n = pack $ "mIn" ++ show (M.id molecule)
+            in  do
+                modify $ addNode n (MergeN  . toNode $ molecule)
+                modify $ addRelation n "r" (MergeR . toURelation $ REAGENT_IN)
 
-        modify $ addNode "m1" (MergeN  . toNode $ m1)
-        modify $ addNode "m2" (MergeN  . toNode $ m2)
+        attachCatalyst (catalyst, temp, pressure) =
+            let n = pack $  "c" ++ show (C.id catalyst)
+            in  do
+                modify $ addNode n (MergeN  . toNode $ catalyst)
+                modify $ addRelation n "r" (MergeR . toURelation $ ACCELERATE temp pressure)
 
-        modify $ addNode "c" (MergeN  . toNode $ catalyst)
+        attachOutMolecule (molecule, amount) =
+            let n = pack $ "mOut" ++ show (M.id molecule)
+            in  do
+                modify $ addNode n (MergeN  . toNode $ molecule)
+                modify $ addRelation "r" n (MergeR . toURelation $ PRODUCT_FROM amount)
 
-        modify $ addNode "m" (MergeN  . toNode $ out)
-
-        modify $ addRelation "m1" "r" (MergeR . toURelation $ REAGENT_IN)
-        modify $ addRelation "m2" "r" (MergeR . toURelation $ REAGENT_IN)
-
-        modify $ addRelation "c" "r" (MergeR . toURelation $ ACCELERATE temp pressure)
-
-        modify $ addRelation "r" "m" (MergeR . toURelation $ PRODUCT_FROM amount)
-
-putReactionWithRelations:: (Molecule, Molecule)
-               -> (Catalyst, Float, Float)
-               -> (Reaction, Float)
-               -> Molecule
-               -> IO ()
-putReactionWithRelations molecules catalyst reaction out = do
+putReactionWithRelations :: [M.Molecule]
+                         -> [(C.Catalyst, Float, Float)]
+                         -> R.Reaction
+                         -> [(M.Molecule, Float)]
+                         -> IO ()
+putReactionWithRelations molecules catalysts reaction out = do
     request <- runQueryDB $ makeRequest @PutRequest []
-                          $ prepareReactionWithRelations molecules catalyst reaction out
+                          $ prepareReactionWithRelations molecules catalysts reaction out
     print request
 
 
@@ -133,7 +144,7 @@ prepareReactionSearch :: Int -> GraphGetRequest
 prepareReactionSearch id = flip execState emptyGraph $ do
         modify $ addNode "r" reaction
     where
-        reaction = defaultNodeReturn & withLabelQ ''Reaction
+        reaction = defaultNodeReturn & withLabelQ ''R.Reaction
                                      & withBoltId id
                                      & withReturn allProps
 
@@ -142,7 +153,7 @@ findReaction :: Int -> IO ()
 findReaction id = do
     request <- runQueryDB $ makeRequest @GetRequest []
                           $ prepareReactionSearch id
-    let reaction :: [Reaction] = extractNode "r" <$> request
+    let reaction :: [R.Reaction] = extractNode "r" <$> request
     print reaction
 
 
@@ -159,8 +170,8 @@ preparePathSearch m1 m2 = do
         p = props ["props" =: props ["iupac1" =: m1, "iupac2" =: m2]]
 
 -- | Find shortest path between two Molecules
-findPath :: Molecule -> Molecule -> IO ()
+findPath :: M.Molecule -> M.Molecule -> IO ()
 findPath m1 m2 = do
     path <- runQueryDB $
-        preparePathSearch (pack $ iupacName m1) (pack $ iupacName m2)
+        preparePathSearch (pack $ M.iupacName m1) (pack $ M.iupacName m2)
     print path
